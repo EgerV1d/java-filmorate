@@ -1,21 +1,22 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @RestController
 @RequestMapping("/users")
 public class UserController {
 
-    private final Map<Long, User> users = new HashMap<>();
+    private final Map<Long, User> users = new ConcurrentHashMap<>();
     private long nextId = 1;
 
     @GetMapping
@@ -30,7 +31,7 @@ public class UserController {
         validate(user);
         user.setId(nextId++);
 
-        if (user.getName() == null || user.getName().isBlank()) {
+        if (!StringUtils.hasText(user.getName())) {
             user.setName(user.getLogin());
             log.debug("Имя пользователя заменено на логин: {}", user.getLogin());
         }
@@ -47,13 +48,13 @@ public class UserController {
             throw new ValidationException("Id пользователя должен быть указан");
         }
 
-        if (!users.containsKey(user.getId())) {
+        if (!userExists(user.getId())) {
             log.warn("Пользователь с id {} не найден", user.getId());
             throw new ValidationException("Пользователь с id = " + user.getId() + " не найден");
         }
         validate(user);
 
-        if (user.getName() == null || user.getName().isBlank()) {
+        if (!StringUtils.hasText(user.getName())) {
             user.setName(user.getLogin());
             log.debug("Имя пользователя заменено на логин: {}", user.getLogin());
         }
@@ -63,7 +64,7 @@ public class UserController {
     }
 
     private void validate(User user) {
-        if (user.getEmail() == null || user.getEmail().isBlank()) {
+        if (!StringUtils.hasText(user.getEmail())) {
             log.warn("Ошибка валидации: пустой email");
             throw new ValidationException("Электронная почта не может быть пустой");
         }
@@ -73,7 +74,7 @@ public class UserController {
             throw new ValidationException("Электронная почта должна содержать символ @");
         }
 
-        if (user.getLogin() == null || user.getLogin().isBlank()) {
+        if (!StringUtils.hasText(user.getLogin())) {
             log.warn("Ошибка валидации: пустой логин");
             throw new ValidationException("Логин не может быть пустым");
         }
@@ -92,5 +93,9 @@ public class UserController {
             log.warn("Ошибка валидации: дата рождения {} в будущем", user.getBirthday());
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
+    }
+
+    boolean userExists(Long id) {
+        return users.containsKey(id);
     }
 }

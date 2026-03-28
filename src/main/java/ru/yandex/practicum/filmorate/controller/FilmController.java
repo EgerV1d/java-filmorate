@@ -1,21 +1,22 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @RestController
 @RequestMapping("/films")
 public class FilmController {
 
-    private final Map<Long, Film> films = new HashMap<>();
+    private final Map<Long, Film> films = new ConcurrentHashMap<>();
     private long nextId = 1;
     private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
 
@@ -43,7 +44,7 @@ public class FilmController {
             throw new ValidationException("Id фильма должен быть указан");
         }
 
-        if (!films.containsKey(film.getId())) {
+        if (!filmExists(film.getId())) {
             log.warn("Фильм с id {} не найден", film.getId());
             throw new ValidationException("Фильм с id = " + film.getId() + " не найден");
         }
@@ -54,7 +55,7 @@ public class FilmController {
     }
 
     private void validateFilm(Film film) {
-        if (film.getName() == null || film.getName().isBlank()) {
+        if (!StringUtils.hasText(film.getName())) {
             log.warn("Ошибка валидации: пустое название фильма");
             throw new ValidationException("Название фильма не может быть пустым");
         }
@@ -78,5 +79,9 @@ public class FilmController {
             log.warn("Ошибка валидации: продолжительность фильма = {}", film.getDuration());
             throw new ValidationException("Продолжительность фильма должна быть положительным числом");
         }
+    }
+
+    boolean filmExists(Long id) {
+        return films.containsKey(id);
     }
 }
