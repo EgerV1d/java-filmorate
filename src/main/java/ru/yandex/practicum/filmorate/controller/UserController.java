@@ -12,7 +12,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/films")
+@RequestMapping("/users")
 public class UserController {
 
     private final Map<Long, User> users = new HashMap<>();
@@ -20,7 +20,7 @@ public class UserController {
 
     @GetMapping
     public Collection<User> findAllUsers() {
-        log.debug("Запрос на получение всех фильмов");
+        log.debug("Запрос на получение всех пользователей");
         return users.values();
     }
 
@@ -28,7 +28,7 @@ public class UserController {
     public User createUser(@RequestBody User user) {
         log.debug("Запрос на создание пользователя: {}", user);
         validate(user);
-        user.setId(nextId);
+        user.setId(nextId++);
 
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
