@@ -42,7 +42,7 @@ public class UserController {
     @PutMapping
     public User updateUser(@RequestBody User user) {
         log.debug("Запрос на обновление пользователя: {}", user);
-        if(user.getId() == null) {
+        if (user.getId() == null) {
             log.warn("Попытка обновления пользователя без ID");
             throw new ValidationException("Id пользователя должен быть указан");
         }
