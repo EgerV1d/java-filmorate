@@ -52,7 +52,7 @@ public class UserControllerTest {
     }
 
     @Test
-    void updateUserNullId () {
+    void updateUserNullId() {
         User user = createTestUser();
         user.setId(null);
 
@@ -60,7 +60,7 @@ public class UserControllerTest {
     }
 
     @Test
-    void updateUser999Id () {
+    void updateUser999Id() {
         User user = createTestUser();
         user.setId(999L);
 
