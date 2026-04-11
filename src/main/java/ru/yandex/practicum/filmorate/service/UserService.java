@@ -23,7 +23,7 @@ public class UserService {
     public Collection<User> findAll() {
         return userStorage.findAllUsers();
     }
-    
+
     public User findById(Long id) {
         return userStorage.findUserById(id).orElseThrow(() -> new NotFoundException(
                 "Пользователь с id = " + id + " не найден"));
@@ -42,7 +42,7 @@ public class UserService {
         }
         return userStorage.updateUser(user);
     }
-    
+
     public void addFriend(Long userId, Long friendId) {
         User user = findById(userId);
         User friend = findById(friendId);
