@@ -1,15 +1,18 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
+import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Set;
-import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class UserService {
 
@@ -30,16 +33,18 @@ public class UserService {
     }
 
     public User create(User user) {
+        validate(user);
         return userStorage.createUser(user);
     }
 
     public User update(User user) {
         if (user.getId() == null) {
-            throw new RuntimeException("Id должен быть указан");
+            throw new ValidationException("Id должен быть указан");
         }
         if (!userStorage.userExists(user.getId())) {
             throw new NotFoundException("Пользователь с id = " + user.getId() + " не найден");
         }
+        validate(user);
         return userStorage.updateUser(user);
     }
 
@@ -61,21 +66,42 @@ public class UserService {
 
     public Collection<User> getFriends(Long userId) {
         User user = findById(userId);
-        return user.getFriends().stream()
-                .map(this::findById)
-                .collect(Collectors.toList());
+        return userStorage.getFriends(userId);
     }
 
     public Collection<User> getCommonFriends(Long userId, Long friendId) {
-        User user = findById(userId);
-        User friend = findById(friendId);
+        return userStorage.getCommonFriends(userId, friendId);
+    }
 
-        Set<Long> commonFriendsId = user.getFriends().stream()
-                .filter(friend.getFriends()::contains)
-                .collect(Collectors.toSet());
+    private void validate(User user) {
+        if (!StringUtils.hasText(user.getEmail())) {
+            log.warn("Ошибка валидации: пустой email");
+            throw new ValidationException("Электронная почта не может быть пустой");
+        }
 
-        return commonFriendsId.stream()
-                .map(this::findById)
-                .collect(Collectors.toList());
+        if (!user.getEmail().contains("@")) {
+            log.warn("Ошибка валидации: email не содержит символ @: {}", user.getEmail());
+            throw new ValidationException("Электронная почта должна содержать символ @");
+        }
+
+        if (!StringUtils.hasText(user.getLogin())) {
+            log.warn("Ошибка валидации: пустой логин");
+            throw new ValidationException("Логин не может быть пустым");
+        }
+
+        if (user.getLogin().contains(" ")) {
+            log.warn("Ошибка валидации: логин содержит пробелы: {}", user.getLogin());
+            throw new ValidationException("Логин не может содержать пробелы");
+        }
+
+        if (user.getBirthday() == null) {
+            log.warn("Ошибка валидации: дата рождения не указана");
+            throw new ValidationException("Дата рождения должна быть указана");
+        }
+
+        if (user.getBirthday().isAfter(LocalDate.now())) {
+            log.warn("Ошибка валидации: дата рождения {} в будущем", user.getBirthday());
+            throw new ValidationException("Дата рождения не может быть в будущем");
+        }
     }
 }

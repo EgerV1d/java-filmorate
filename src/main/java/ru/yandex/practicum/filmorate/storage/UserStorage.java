@@ -15,4 +15,8 @@ public interface UserStorage {
     User updateUser(User user);
 
     boolean userExists(Long id);
+
+    Collection<User> getCommonFriends(Long userId, Long otherId);
+
+    Collection<User> getFriends(Long userId);
 }
