@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -17,6 +18,8 @@ public class Film {
     private LocalDate releaseDate;
     private Integer duration;
     private Set<Long> likes = new HashSet<>();
+    @JsonProperty("genres")
     private Set<Genre> genres = new HashSet<>();
+    @JsonProperty("mpa")
     private MpaRating mpaRating;
 }
