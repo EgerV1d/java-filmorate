@@ -34,8 +34,14 @@ public class UserService {
     }
 
     public User create(User user) {
+        if (!StringUtils.hasText(user.getName())) {
+            user.setName(user.getLogin());
+            log.debug("Имя пользователя заменено на логин: {}", user.getLogin());
+        }
         validate(user);
-        return userStorage.createUser(user);
+        User created = userStorage.createUser(user);
+        log.info("Создан пользователь: id={}, email={}", created.getId(), created.getEmail());
+        return created;
     }
 
     public User update(User user) {
@@ -45,20 +51,33 @@ public class UserService {
         if (!userStorage.userExists(user.getId())) {
             throw new NotFoundException("Пользователь с id = " + user.getId() + " не найден");
         }
+        if (!StringUtils.hasText(user.getName())) {
+            user.setName(user.getLogin());
+        }
         validate(user);
-        return userStorage.updateUser(user);
+        User updated = userStorage.updateUser(user);
+        log.info("Обновлён пользователь: id={}, email={}", updated.getId(), updated.getEmail());
+        return updated;
     }
 
     public void addFriend(Long userId, Long friendId) {
-        findById(userId);
-        findById(friendId);
+        if (!userStorage.userExists(userId)) {
+            throw new NotFoundException("Пользователь с id = " + userId + " не найден");
+        }
+        if (!userStorage.userExists(friendId)) {
+            throw new NotFoundException("Пользователь с id = " + friendId + " не найден");
+        }
 
         userStorage.addFriend(userId, friendId);
     }
 
     public void removeFriend(Long userId, Long friendId) {
-        findById(userId);
-        findById(friendId);
+        if (!userStorage.userExists(userId)) {
+            throw new NotFoundException("Пользователь с id = " + userId + " не найден");
+        }
+        if (!userStorage.userExists(friendId)) {
+            throw new NotFoundException("Пользователь с id = " + friendId + " не найден");
+        }
 
         userStorage.removeFriend(userId, friendId);
     }

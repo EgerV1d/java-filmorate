@@ -28,6 +28,7 @@ public class FilmService {
     private final GenreStorage genreStorage;
 
     private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
+    private static final int MAX_DESCRIPTION_LENGTH = 200;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
@@ -64,7 +65,9 @@ public class FilmService {
             }
         }
         validateFilm(film);
-        return filmStorage.createFilm(film);
+        Film saved = filmStorage.createFilm(film);
+        log.info("Создан фильм: id={}, name={}", saved.getId(), saved.getName());
+        return saved;
     }
 
     public Film update(Film film) {
@@ -75,7 +78,9 @@ public class FilmService {
             throw new NotFoundException("Фильм с id = " + film.getId() + " не найден");
         }
         validateFilm(film);
-        return filmStorage.updateFilm(film);
+        Film updated = filmStorage.updateFilm(film);
+        log.info("Обновлён фильм: id={}, name={}", updated.getId(), updated.getName());
+        return updated;
     }
 
     public void addLike(Long filmId, Long userId) {
@@ -84,6 +89,7 @@ public class FilmService {
             throw new NotFoundException("Пользователь с id = " + userId + " не найден");
         }
         filmStorage.addLike(filmId, userId);
+        log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);
     }
 
     public void removeLike(Long filmId, Long userId) {
@@ -92,6 +98,7 @@ public class FilmService {
             throw new NotFoundException("Пользователь с id = " + userId + " не найден");
         }
         filmStorage.removeLike(filmId, userId);
+        log.info("Пользователь {} удалил лайк у фильма {}", userId, filmId);
     }
 
     public List<Film> getPopularFilms(int count) {
@@ -104,9 +111,10 @@ public class FilmService {
             throw new ValidationException("Название фильма не может быть пустым");
         }
 
-        if (film.getDescription() != null && film.getDescription().length() > 200) {
+        if (film.getDescription() != null && film.getDescription().length() > MAX_DESCRIPTION_LENGTH) {
             log.warn("Ошибка валидации: описание фильма превышает 200 символов");
-            throw new ValidationException("Описание фильма не может быть длиннее 200 символов");
+            throw new ValidationException("Описание фильма не может быть длиннее " +
+                    MAX_DESCRIPTION_LENGTH + " символов");
         }
 
         if (film.getReleaseDate() == null) {

@@ -28,8 +28,11 @@ public class FilmDbStorage implements FilmStorage {
                 "FROM films f " +
                 "LEFT JOIN mpa_rating m ON f.mpa_rating_id = m.mpa_rating_id";
         List<Film> films = jdbc.query(sql, filmRowMapper);
+
+        Map<Long, Set<Genre>> genresMap = getGenresForFilms(films);
+
         for (Film film : films) {
-            film.setGenres(getGenresByFilmId(film.getId()));
+            film.setGenres(genresMap.getOrDefault(film.getId(), new HashSet<>()));
         }
         return films;
     }
@@ -100,8 +103,11 @@ public class FilmDbStorage implements FilmStorage {
                 "GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_rating_id, m.name " +
                 "ORDER BY likes_count DESC, f.film_id DESC LIMIT ?";
         List<Film> films = jdbc.query(sql, filmRowMapper, count);
+
+        Map<Long, Set<Genre>> genresMap = getGenresForFilms(films);
+
         for (Film film : films) {
-            film.setGenres(getGenresByFilmId(film.getId()));
+            film.setGenres(genresMap.getOrDefault(film.getId(), new HashSet<>()));
         }
         return films;
     }
@@ -137,5 +143,29 @@ public class FilmDbStorage implements FilmStorage {
                     .toList();
             jdbc.batchUpdate(sql, args);
         }
+    }
+
+    private Map<Long, Set<Genre>> getGenresForFilms(List<Film> films) {
+        if (films.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .toList();
+        String request = String.join(",", Collections.nCopies(filmIds.size(), "?"));
+
+        String sql = "SELECT fg.film_id, g.genre_id, g.name FROM film_genre fg " +
+                "JOIN genres g ON fg.genre_id = g.genre_id " +
+                "WHERE fg.film_id IN (" + request + ")";
+        Map<Long, Set<Genre>> genresMap = new HashMap<>();
+
+        jdbc.query(sql, rs -> {
+            Long filmId = rs.getLong("film_id");
+            Genre genre = new Genre(rs.getInt("genre_id"), rs.getString("name"));
+            genresMap.computeIfAbsent(filmId, k -> new HashSet<>()).add(genre);
+        }, filmIds.toArray());
+
+        return genresMap;
     }
 }
