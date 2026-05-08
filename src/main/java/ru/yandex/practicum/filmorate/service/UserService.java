@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -19,7 +20,7 @@ public class UserService {
     private final UserStorage userStorage;
 
     @Autowired
-    public UserService(UserStorage userStorage) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
         this.userStorage = userStorage;
     }
 
@@ -33,8 +34,14 @@ public class UserService {
     }
 
     public User create(User user) {
+        if (!StringUtils.hasText(user.getName())) {
+            user.setName(user.getLogin());
+            log.debug("Имя пользователя заменено на логин: {}", user.getLogin());
+        }
         validate(user);
-        return userStorage.createUser(user);
+        User created = userStorage.createUser(user);
+        log.info("Создан пользователь: id={}, email={}", created.getId(), created.getEmail());
+        return created;
     }
 
     public User update(User user) {
@@ -44,24 +51,35 @@ public class UserService {
         if (!userStorage.userExists(user.getId())) {
             throw new NotFoundException("Пользователь с id = " + user.getId() + " не найден");
         }
+        if (!StringUtils.hasText(user.getName())) {
+            user.setName(user.getLogin());
+        }
         validate(user);
-        return userStorage.updateUser(user);
+        User updated = userStorage.updateUser(user);
+        log.info("Обновлён пользователь: id={}, email={}", updated.getId(), updated.getEmail());
+        return updated;
     }
 
     public void addFriend(Long userId, Long friendId) {
-        User user = findById(userId);
-        User friend = findById(friendId);
+        if (!userStorage.userExists(userId)) {
+            throw new NotFoundException("Пользователь с id = " + userId + " не найден");
+        }
+        if (!userStorage.userExists(friendId)) {
+            throw new NotFoundException("Пользователь с id = " + friendId + " не найден");
+        }
 
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
+        userStorage.addFriend(userId, friendId);
     }
 
     public void removeFriend(Long userId, Long friendId) {
-        User user = findById(userId);
-        User friend = findById(friendId);
+        if (!userStorage.userExists(userId)) {
+            throw new NotFoundException("Пользователь с id = " + userId + " не найден");
+        }
+        if (!userStorage.userExists(friendId)) {
+            throw new NotFoundException("Пользователь с id = " + friendId + " не найден");
+        }
 
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
+        userStorage.removeFriend(userId, friendId);
     }
 
     public Collection<User> getFriends(Long userId) {

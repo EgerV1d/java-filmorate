@@ -2,12 +2,16 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.GenreStorage;
+import ru.yandex.practicum.filmorate.storage.MpaRatingStorage;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
@@ -20,13 +24,21 @@ public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
+    private final MpaRatingStorage mpaRatingStorage;
+    private final GenreStorage genreStorage;
 
     private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
+    private static final int MAX_DESCRIPTION_LENGTH = 200;
 
     @Autowired
-    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
+    public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
+                       @Qualifier("userDbStorage") UserStorage userStorage,
+                       MpaRatingStorage mpaRatingStorage,
+                       GenreStorage genreStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
+        this.mpaRatingStorage = mpaRatingStorage;
+        this.genreStorage = genreStorage;
     }
 
     public Collection<Film> findAll() {
@@ -39,8 +51,23 @@ public class FilmService {
     }
 
     public Film create(Film film) {
+        if (film.getMpaRating() == null || film.getMpaRating().getId() == null) {
+            throw new ValidationException("Рейтинг MPA должен быть указан");
+        }
+        if (!mpaRatingStorage.existsById(film.getMpaRating().getId())) {
+            throw new NotFoundException("Рейтинг MPA с id = " + film.getMpaRating().getId() + " не найден");
+        }
+        if (film.getGenres() != null) {
+            for (Genre genre : film.getGenres()) {
+                if (!genreStorage.existsById(genre.getId())) {
+                    throw new NotFoundException("Жанр с id = " + genre.getId() + " не найден");
+                }
+            }
+        }
         validateFilm(film);
-        return filmStorage.createFilm(film);
+        Film saved = filmStorage.createFilm(film);
+        log.info("Создан фильм: id={}, name={}", saved.getId(), saved.getName());
+        return saved;
     }
 
     public Film update(Film film) {
@@ -51,7 +78,9 @@ public class FilmService {
             throw new NotFoundException("Фильм с id = " + film.getId() + " не найден");
         }
         validateFilm(film);
-        return filmStorage.updateFilm(film);
+        Film updated = filmStorage.updateFilm(film);
+        log.info("Обновлён фильм: id={}, name={}", updated.getId(), updated.getName());
+        return updated;
     }
 
     public void addLike(Long filmId, Long userId) {
@@ -59,7 +88,8 @@ public class FilmService {
         if (!userStorage.userExists(userId)) {
             throw new NotFoundException("Пользователь с id = " + userId + " не найден");
         }
-        film.getLikes().add(userId);
+        filmStorage.addLike(filmId, userId);
+        log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);
     }
 
     public void removeLike(Long filmId, Long userId) {
@@ -67,7 +97,8 @@ public class FilmService {
         if (!userStorage.userExists(userId)) {
             throw new NotFoundException("Пользователь с id = " + userId + " не найден");
         }
-        film.getLikes().remove(userId);
+        filmStorage.removeLike(filmId, userId);
+        log.info("Пользователь {} удалил лайк у фильма {}", userId, filmId);
     }
 
     public List<Film> getPopularFilms(int count) {
@@ -80,9 +111,10 @@ public class FilmService {
             throw new ValidationException("Название фильма не может быть пустым");
         }
 
-        if (film.getDescription() != null && film.getDescription().length() > 200) {
+        if (film.getDescription() != null && film.getDescription().length() > MAX_DESCRIPTION_LENGTH) {
             log.warn("Ошибка валидации: описание фильма превышает 200 символов");
-            throw new ValidationException("Описание фильма не может быть длиннее 200 символов");
+            throw new ValidationException("Описание фильма не может быть длиннее " +
+                    MAX_DESCRIPTION_LENGTH + " символов");
         }
 
         if (film.getReleaseDate() == null) {
